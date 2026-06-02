@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { getSessionOrThrow, requireAdmin } from '@/lib/auth-helpers';
 import { apiSuccess } from '@/lib/api-response';
 import { NextRequest } from 'next/server';
