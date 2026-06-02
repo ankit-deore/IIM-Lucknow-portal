@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-sans);
+  
+  --color-primary: var(--color-primary);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-primary-light: var(--color-primary-light);
+  
+  --color-accent: var(--color-accent);
+  --color-accent-dark: var(--color-accent-dark);
+  
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-inverse: var(--color-text-inverse);
+  
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-subtle: var(--color-bg-subtle);
+  
+  --color-border: var(--color-border);
+  --color-success: var(--color-success);
+  --color-error: var(--color-error);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+@layer base {
+  :root {
+    --color-primary: #1B3A6B;
+    --color-primary-dark: #0F2347;
+    --color-primary-light: #D6E4F7;
+    
+    --color-accent: #C9A84C;
+    --color-accent-dark: #A8862D;
+    
+    --color-text-primary: #1A1A2E;
+    --color-text-secondary: #555577;
+    --color-text-inverse: #FFFFFF;
+    
+    --color-bg-base: #FFFFFF;
+    --color-bg-subtle: #F5F7FA;
+    
+    --color-border: #DDE3EE;
+    --color-success: #2E7D32;
+    --color-error: #C62828;
+
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(27,58,107,0.12);
+    --shadow-lg: 0 8px 32px rgba(27,58,107,0.18);
+
+    --transition: 150ms ease-in-out;
+  }
+
+  body {
+    @apply bg-[var(--color-bg-base)] text-[var(--color-text-primary)] antialiased;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

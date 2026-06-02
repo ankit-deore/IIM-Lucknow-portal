@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserType {
+  STUDENT
+  STAFF
+}
+
+// Gurukul core user model
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  googleSub     String?   @unique  // Google subject ID for stable identity
+  name          String?
+  image         String?
+  userType      UserType  @default(STUDENT)
+  isAdmin       Boolean   @default(false)
+  status        UserStatus @default(DORMANT)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  accounts      Account[]
+  sessions      Session[]
+  profile       StudentProfile?
+
+  // Extended Relations
+  announcements         Announcement[]         @relation("AnnouncementAuthor")
+  announcementReads     AnnouncementRead[]
+  timetableSessionsCreated TimetableSession[]
+  resourcesCreated      Resource[]
+  interviewsAsRequester MockInterviewSession[] @relation("Requester")
+  interviewsAsPartner   MockInterviewSession[] @relation("Partner")
+  feedbackGiven         MockInterviewFeedback[] @relation("FeedbackReviewer")
+  feedbackReceived      MockInterviewFeedback[] @relation("FeedbackReviewee")
+}
+
+enum UserStatus {
+  DORMANT      // seeded by admin, never logged in
+  ACTIVE       // has completed first login + profile review
+  DEACTIVATED  // removed by admin
+}
+
+// Student Profile
+model StudentProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  programme       String?  // IPMX | PGPSM | PGPWE | DGMP
+  batch           String?
+  dob             DateTime? // Admin-controlled, encrypted at rest
+  workExperience  String?
+  profileComplete Boolean  @default(false)
+  
+  // New Fields (Step 3)
+  currentRole       String?
+  company           String?
+  industry          String?
+  academicBackground String?
+  photoUrl          String?
+  showInterviewStats Boolean @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Admin registry — email presence here grants admin access
+model AdminEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  addedBy   String?
+  addedAt   DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// ANNOUNCEMENTS
+// -------------------------------------------------------------
+model Announcement {
+  id                String             @id @default(cuid())
+  title             String
+  body              String             @db.Text
+  type              AnnouncementType   @default(GENERAL)
+  targetProgrammes  String[]           // empty array = all programmes
+  isPinned          Boolean            @default(false)
+  expiryDate        DateTime?
+  createdBy         String             // admin user id
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  reads             AnnouncementRead[]
+  author            User               @relation("AnnouncementAuthor", fields: [createdBy], references: [id])
+}
+
+enum AnnouncementType {
+  GENERAL
+  URGENT
+  EVENT
+}
+
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+// -------------------------------------------------------------
+// TIMETABLE
+// -------------------------------------------------------------
+model TimetableSession {
+  id          String          @id @default(cuid())
+  programme   String          // IPMX | PGPSM | PGPWE | DGMP
+  batch       String
+  subject     String
+  faculty     String?
+  date        DateTime        @db.Date
+  startTime   String          // stored as "HH:MM" in IST
+  endTime     String          // stored as "HH:MM" in IST
+  venue       String?
+  sessionType SessionType     @default(LECTURE)
+  notes       String?         @db.Text
+  resourceId  String?         // optional link to a Resource
+  createdBy   String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  resource    Resource?       @relation(fields: [resourceId], references: [id])
+  createdByUser User          @relation(fields: [createdBy], references: [id])
+}
+
+enum SessionType {
+  LECTURE
+  WORKSHOP
+  GUEST_TALK
+  EXAM
+  OTHER
+}
+
+// -------------------------------------------------------------
+// RESOURCES
+// -------------------------------------------------------------
+model ResourceCategory {
+  id           String     @id @default(cuid())
+  programme    String     // IPMX | PGPSM | PGPWE | DGMP | ALL
+  name         String
+  description  String?
+  displayOrder Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  resources    Resource[]
+}
+
+model Resource {
+  id                String            @id @default(cuid())
+  categoryId        String
+  title             String
+  driveUrl          String
+  typeTag           ResourceType      @default(LINK)
+  targetProgrammes  String[]          // empty array = all programmes
+  isActive          Boolean           @default(true)
+  effectiveFrom     DateTime?
+  createdBy         String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  category          ResourceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdByUser     User              @relation(fields: [createdBy], references: [id])
+  timetableSessions TimetableSession[]
+}
+
+enum ResourceType {
+  PDF
+  FOLDER
+  SPREADSHEET
+  VIDEO
+  LINK
+}
+
+model ProgrammeResource {
+  id        String   @id @default(cuid())
+  programme String   @unique
+  driveUrl  String
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -------------------------------------------------------------
+// MOCK INTERVIEWS
+// -------------------------------------------------------------
+model MockInterviewSession {
+  id             String                  @id @default(cuid())
+  requesterId    String
+  partnerId      String
+  sessionFormat  InterviewFormat         @default(FULL_MOCK)
+  proposedSlots  Json                    // array of ISO datetime strings
+  confirmedSlot  DateTime?
+  status         InterviewStatus         @default(REQUESTED)
+  requesterNote  String?
+  declineMessage String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  requester      User                    @relation("Requester", fields: [requesterId], references: [id])
+  partner        User                    @relation("Partner", fields: [partnerId], references: [id])
+  feedback       MockInterviewFeedback[]
+}
+
+enum InterviewFormat {
+  QUICK_PREP    // 15 minutes
+  FULL_MOCK     // 45 minutes
+}
+
+enum InterviewStatus {
+  REQUESTED
+  CONFIRMED
+  AWAITING_FEEDBACK
+  COMPLETED
+  CANCELLED
+  DECLINED
+  EXPIRED
+}
+
+model MockInterviewFeedback {
+  id            String               @id @default(cuid())
+  sessionId     String
+  reviewerId    String               // who wrote the feedback
+  revieweeId    String               // who receives the feedback
+  rating        Int                  // 1–5
+  whatWentWell  String?              @db.Text
+  improvements  String?              @db.Text
+  wouldRepeat   Boolean
+  submittedAt   DateTime             @default(now())
+  session       MockInterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  reviewer      User                 @relation("FeedbackReviewer", fields: [reviewerId], references: [id])
+  reviewee      User                 @relation("FeedbackReviewee", fields: [revieweeId], references: [id])
+
+  @@unique([sessionId, reviewerId])
+}
+
+// -------------------------------------------------------------
+// AUDIT LOG
+// -------------------------------------------------------------
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminEmail String
+  action     String   // e.g. "CREATE_ANNOUNCEMENT", "DEACTIVATE_USER"
+  entityType String   // e.g. "Announcement", "User"
+  entityId   String
+  metadata   Json?    // any extra context
+  createdAt  DateTime @default(now())
+}
